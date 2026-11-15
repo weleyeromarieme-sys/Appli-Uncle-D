@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Mizan</title>
+<meta name="description" content="Ma journée planifiée autour des cinq prières.">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#f2ecdf" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0f1830" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mizan">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=Marcellus&display=swap">
+<style>
+/* Layout : une colonne-frise (la journée, rythmée par les 5 prières) + une colonne d'outils ; empilées sur mobile. */
+:root{
+  --bg:#f2ecdf; --surface:#fbf8f1; --ink:#22302b; --muted:#667068; --line:#ddd4c0;
+  --sage:#5f7d5d; --sage-soft:#dde6d4; --gold:#96721f; --gold-soft:#efe2bd;
+  --work:#48638c; --work-soft:#dae1ec; --health:#a75f47; --health-soft:#f1ddd2;
+  --life:#8a8676;
+  --display:"Marcellus","Iowan Old Style",Georgia,serif;
+  --body:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f1830; --surface:#17223d; --ink:#ebe7da; --muted:#9ca6ba; --line:#2b3758;
+  --sage:#9bb996; --sage-soft:#20342f; --gold:#dcb964; --gold-soft:#3b3421;
+  --work:#93aedb; --work-soft:#1f2d4d; --health:#e09f87; --health-soft:#3b2a2b;
+  --life:#8d93a3; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0f1830; --surface:#17223d; --ink:#ebe7da; --muted:#9ca6ba; --line:#2b3758;
+  --sage:#9bb996; --sage-soft:#20342f; --gold:#dcb964; --gold-soft:#3b3421;
+  --work:#93aedb; --work-soft:#1f2d4d; --health:#e09f87; --health-soft:#3b2a2b;
+  --life:#8d93a3; color-scheme:dark }
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--display);font-weight:400;margin:0;text-wrap:balance}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+.eyebrow{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+
+/* En-tête */
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.brand{display:flex;gap:12px;align-items:center}
+.brand svg{flex:none}
+.brand h1{font-size:28px;line-height:1.1}
+.brand p{margin:2px 0 0;color:var(--muted);font-size:13.5px}
+.settings{display:flex;flex-wrap:wrap;gap:8px}
+.settings label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;color:var(--muted)}
+select,input[type=number],input[type=text],textarea{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 8px;max-width:100%}
+
+/* Semaine */
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.day{background:transparent;border:1px solid var(--line);border-radius:10px;padding:7px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0}
+.day small{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.day b{font-family:var(--display);font-weight:400;font-size:19px}
+.day i{font-style:normal;font-size:10.5px;color:var(--gold);height:14px;white-space:nowrap;overflow:hidden;max-width:100%}
+.day[aria-current="date"]{background:var(--sage);border-color:var(--sage);color:var(--bg)}
+.day[aria-current="date"] small,.day[aria-current="date"] i{color:var(--bg)}
+.day.today:not([aria-current="date"]){border-color:var(--sage)}
+
+.notes{display:flex;flex-wrap:wrap;gap:8px}
+.note{background:var(--gold-soft);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13.5px}
+.note b{color:var(--gold)}
+
+.cols{display:grid;grid-template-columns:minmax(0,1fr);gap:20px;align-items:start}
+@media (min-width:900px){ .cols{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)} }
+.side{display:flex;flex-direction:column;gap:16px;min-width:0}
+.main{min-width:0;display:flex;flex-direction:column;gap:16px}
+
+/* Prochaine prière */
+.next{background:var(--sage);color:var(--bg);border-radius:16px;padding:18px 18px 14px;position:relative;overflow:hidden}
+.next .eyebrow{color:var(--bg);opacity:.8}
+.next h2{font-size:34px;line-height:1.1;margin-top:2px}
+.next .cd{font-size:15px;opacity:.92}
+.next svg.orn{position:absolute;right:-28px;top:-28px;opacity:.16}
+.salat{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:14px}
+.salat button{background:transparent;border:1px solid color-mix(in srgb,var(--bg) 45%,transparent);color:var(--bg);border-radius:10px;padding:6px 2px;display:flex;flex-direction:column;align-items:center;min-width:0}
+.salat button span{font-size:11.5px;opacity:.85}
+.salat button b{font-weight:600;font-size:14px}
+.salat button[aria-pressed="true"]{background:var(--bg);color:var(--sage);border-color:var(--bg)}
+.next .sun{font-size:12.5px;opacity:.8;margin-top:10px}
+
+/* Frise */
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px}
+.panel>header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.panel h3{font-size:19px}
+.panel header span{font-size:12.5px;color:var(--muted)}
+.tl{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
+.row{display:grid;grid-template-columns:46px 18px minmax(0,1fr) 34px;gap:0 10px;align-items:center;padding:8px 6px;position:relative;border-radius:12px;--c:var(--life);--cs:transparent}
+.row.spirit{--c:var(--sage);--cs:var(--sage-soft)} .row.work{--c:var(--work);--cs:var(--work-soft)}
+.row.health{--c:var(--health);--cs:var(--health-soft)} .row.kin{--c:var(--gold);--cs:var(--gold-soft)}
+.row .t{text-align:right;font-size:13px;line-height:1.2}
+.row .t b{display:block;font-weight:600}
+.row .t span{color:var(--muted);font-size:11.5px}
+.row .nd{justify-self:center;width:11px;height:11px;border-radius:50%;border:2px solid var(--c);background:var(--surface);position:relative;z-index:1}
+.row::before{content:"";position:absolute;left:66px;top:0;bottom:0;width:1px;background:var(--line)}
+.row:first-child::before{top:50%} .row:last-child::before{bottom:50%}
+.row .ttl{font-weight:600;overflow-wrap:anywhere}
+.row .sub{font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.row .sub em{font-style:normal;color:var(--c);font-weight:600}
+.row.prayer{background:var(--cs);margin-block:3px}
+.row.prayer::before{display:none}
+.row.prayer .ttl{font-family:var(--display);font-weight:400;font-size:19px}
+.row.prayer .nd{border:0;border-radius:0;width:12px;height:12px;background:var(--c)}
+.row.prayer .nd::after{content:"";position:absolute;inset:0;background:var(--c);transform:rotate(45deg)}
+.row.gap{padding-block:3px} .row.gap .nd{border:0;width:5px;height:5px;background:var(--line)}
+.row.gap .ttl{font-weight:400;font-size:12.5px;color:var(--muted)} .row.gap .t{opacity:.7}
+.row.past{opacity:.62}
+.row.now{box-shadow:inset 0 0 0 1.5px var(--c)}
+.row.now .ttl::after{content:"En cours";margin-left:8px;font:600 10.5px var(--body);letter-spacing:.07em;text-transform:uppercase;color:var(--c);vertical-align:middle}
+.row.done .ttl{text-decoration:line-through;text-decoration-color:var(--c)}
+.chk{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);background:var(--surface);display:grid;place-items:center;padding:0;color:transparent;font-size:15px;line-height:1}
+.chk[aria-pressed="true"]{background:var(--c,var(--sage));border-color:var(--c,var(--sage));color:var(--surface)}
+
+/* Cartes d'outils */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card>header{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.card h3{font-size:18px}
+.card small,.hint{font-size:12.5px;color:var(--muted)}
+.prio{display:flex;flex-direction:column;gap:6px}
+.prio div{display:flex;gap:8px;align-items:center}
+.prio b{font-family:var(--display);font-weight:400;color:var(--work);width:14px;font-size:17px}
+.prio input[type=text]{flex:1;min-width:0}
+.prio .chk{--c:var(--work);flex:none}
+.prio .isdone{text-decoration:line-through;color:var(--muted)}
+.btn{background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:8px 16px;font-weight:600}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.sm{padding:5px 12px;font-size:13px}
+.pomo{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pomo .clock{font-family:var(--display);font-size:44px;line-height:1;color:var(--work)}
+.pomo .acts{display:flex;gap:8px;flex-wrap:wrap}
+.bar{height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--sage);border-radius:99px;transition:width .3s}
+.stepper{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stepper button{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:transparent;font-size:18px;line-height:1}
+.stepper .val{font-family:var(--display);font-size:26px}
+.goal{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.goal input{width:58px}
+.kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.kv div{border-top:1px solid var(--line);padding-top:6px}
+.kv b{display:block;font-family:var(--display);font-weight:400;font-size:22px;color:var(--health)}
+.kv span{font-size:12px;color:var(--muted)}
+.opts{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:13.5px}
+.opts label{display:flex;gap:6px;align-items:center}
+.kinlist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.kinlist li{display:flex;gap:10px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
+.kinlist p{margin:0;min-width:0;font-size:14px}
+.kinlist .btn{flex:none}
+.bal{display:flex;height:14px;gap:2px;border-radius:99px;overflow:hidden}
+.bal i{display:block;min-width:3px}
+.leg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 12px;font-size:13px}
+.leg span{display:flex;gap:6px;align-items:center;min-width:0}
+.leg span::before{content:"";width:9px;height:9px;border-radius:2px;background:var(--c);flex:none}
+.leg b{margin-left:auto;font-weight:600}
+
+dialog{border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--ink);padding:20px;width:min(480px,calc(100vw - 32px));max-height:calc(100vh - 48px)}
+dialog::backdrop{background:rgb(10 16 32 / .55)}
+dialog form{display:flex;flex-direction:column;gap:12px}
+dialog h3{font-size:22px}
+dialog label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+dialog textarea,dialog input[type=text]{width:100%;color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{border:1px solid var(--line);background:transparent;border-radius:99px;padding:5px 12px;font-size:13.5px}
+.chips button[aria-pressed="true"]{background:var(--sage);border-color:var(--sage);color:var(--bg)}
+.dlg-acts{display:flex;justify-content:flex-end;gap:8px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:99px;font-size:13.5px;max-width:calc(100vw - 32px);z-index:20}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important} }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">
+      <svg width="38" height="38" viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="var(--gold)" stroke-width="1.6"><rect x="8" y="8" width="24" height="24"/><rect x="8" y="8" width="24" height="24" transform="rotate(45 20 20)"/><circle cx="20" cy="20" r="5.5" stroke="var(--sage)"/></g></svg>
+      <div><h1 id="dTitle">Ma Journée</h1><p id="dSub"></p></div>
+    </div>
+    <div class="settings">
+      <label for="city">Ville<select id="city"></select></label>
+      <label for="method">Méthode de calcul<select id="method"></select></label>
+    </div>
+  </div>
+
+  <div class="week" id="week" role="group" aria-label="Jours de la semaine"></div>
+  <div class="notes" id="notes"></div>
+
+  <div class="cols">
+    <div class="main">
+      <section class="next" aria-live="off">
+        <svg class="orn" width="150" height="150" viewBox="0 0 40 40" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width=".8"><rect x="8" y="8" width="24" height="24"/><rect x="8" y="8" width="24" height="24" transform="rotate(45 20 20)"/><rect x="12" y="12" width="16" height="16"/><rect x="12" y="12" width="16" height="16" transform="rotate(45 20 20)"/></g></svg>
+        <div class="eyebrow" id="nxLabel">Prochaine prière</div>
+        <h2 id="nxName"></h2>
+        <div class="cd num" id="nxCd"></div>
+        <div class="salat" id="salat"></div>
+        <div class="sun num" id="sun"></div>
+      </section>
+
+      <section class="panel">
+        <header><h3>Le fil de la journée</h3><span id="tlMeta"></span></header>
+        <ol class="tl" id="tl"></ol>
+      </section>
+    </div>
+
+    <div class="side">
+      <section class="card">
+        <header><h3>Top 3 du jour</h3><small>Exemples à remplacer</small></header>
+        <div class="prio" id="prio"></div>
+      </section>
+
+      <section class="card">
+        <header><h3>Pomodoro</h3><small id="pmMode">Prêt</small></header>
+        <div class="pomo">
+          <div class="clock num" id="pmClock">25:00</div>
+          <div class="acts">
+            <button class="btn" id="pmGo" data-act="pomo">Démarrer</button>
+            <button class="btn ghost" data-act="pomo-reset">Réinitialiser</button>
+          </div>
+        </div>
+        <div class="hint" id="pmNote"></div>
+      </section>
+
+      <section class="card">
+        <header><h3>Lecture du Coran</h3><small id="qPct"></small></header>
+        <div class="stepper">
+          <button data-act="q-" aria-label="Retirer une unité">−</button>
+          <span class="val num" id="qVal"></span>
+          <button data-act="q+" aria-label="Ajouter une unité">+</button>
+        </div>
+        <div class="bar"><i id="qBar"></i></div>
+        <div class="goal"><label for="qGoal">Objectif</label><input type="number" id="qGoal" min="1" max="600">
+          <select id="qUnit" aria-label="Unité"><option value="pages">pages</option><option value="versets">versets</option><option value="minutes">minutes</option></select> par jour</div>
+      </section>
+
+      <section class="card">
+        <header><h3>Sommeil et sport</h3><small>Calé sur Fajr</small></header>
+        <div class="kv num" id="sleep"></div>
+        <div class="opts">
+          <label><input type="checkbox" id="nap"> Qaylulah (sieste de 20 min)</label>
+        </div>
+        <div class="opts">
+          <label for="spType">Séance</label>
+          <select id="spType"><option>Marche</option><option>Cardio</option><option>Musculation</option></select>
+          <select id="spWhen" aria-label="Moment de la séance"><option value="matin">après Fajr</option><option value="midi">pause déjeuner</option><option value="soir">fin de journée</option></select>
+        </div>
+      </section>
+
+      <section class="card">
+        <header><h3>Silat ar-Rahim</h3><small>Proches fictifs, à remplacer</small></header>
+        <ul class="kinlist" id="kin"></ul>
+      </section>
+
+      <section class="card">
+        <header><h3>Équilibre du jour</h3><small id="balTot"></small></header>
+        <div class="bal" id="bal"></div>
+        <div class="leg num" id="leg"></div>
+        <div class="hint">Temps planifié par pilier. « Ma Semaine » cumule ces sept journées.</div>
+      </section>
+
+      <button class="btn" data-act="checkin" style="align-self:stretch;padding:12px">Faire le bilan du soir (2 min)</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg">
+  <form id="ciForm">
+    <div><div class="eyebrow">Bilan du soir</div><h3 id="ciTitle">Comment s'est passée ta journée ?</h3></div>
+    <div><div class="hint" style="margin-bottom:6px">Prières accomplies</div><div class="chips" id="ciSalat"></div></div>
+    <div class="hint" id="ciSum"></div>
+    <label for="ciGrat">Trois choses pour lesquelles dire al-hamdulillah
+      <textarea id="ciGrat" rows="3"></textarea></label>
+    <label for="ciAdj">Ce que j'ajuste demain
+      <textarea id="ciAdj" rows="2"></textarea></label>
+    <label for="ciP1">Priorité n°1 de demain
+      <input type="text" id="ciP1"></label>
+    <div class="dlg-acts">
+      <button type="button" class="btn ghost" data-act="ci-close">Fermer</button>
+      <button type="submit" class="btn">Enregistrer le bilan</button>
+    </div>
+  </form>
+</dialog>
+<div id="toast" hidden role="status"></div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const CITIES=[
+ {n:'Dakar',lat:14.7167,lng:-17.4677,tz:'Africa/Dakar'},{n:'Thiès',lat:14.791,lng:-16.9359,tz:'Africa/Dakar'},
+ {n:'Touba',lat:14.85,lng:-15.8833,tz:'Africa/Dakar'},{n:'Saint-Louis',lat:16.0179,lng:-16.4896,tz:'Africa/Dakar'},
+ {n:'Kaolack',lat:14.1652,lng:-16.0758,tz:'Africa/Dakar'},{n:'Ziguinchor',lat:12.5681,lng:-16.2719,tz:'Africa/Dakar'},
+ {n:'Paris',lat:48.8566,lng:2.3522,tz:'Europe/Paris'},{n:'La Mecque',lat:21.4225,lng:39.8262,tz:'Asia/Riyadh'}];
+const METHODS={
+ MWL:{n:'Ligue islamique mondiale (18° / 17°)',f:18,i:17},
+ ISNA:{n:'ISNA (15° / 15°)',f:15,i:15},
+ UOIF:{n:'UOIF, France (12° / 12°)',f:12,i:12},
+ EGYPT:{n:'Égypte (19,5° / 17,5°)',f:19.5,i:17.5},
+ MAKKAH:{n:'Umm al-Qura (18,5° / +90 min)',f:18.5,im:90},
+ KARACHI:{n:'Karachi (18° / 18°)',f:18,i:18}};
+const PR=[['fajr','Fajr'],['dhuhr','Dhuhr'],['asr','Asr'],['maghrib','Maghrib'],['isha','Isha']];
+const KIN=[{n:'Maman',verb:'appelé',act:'Appeler Maman',d:6},{n:'Tante Amina',verb:'rendu visite à',act:'Visite à Tante Amina',d:15},{n:'Yassine',verb:'vu',act:'Voir Yassine',d:23}];
+const DEF_PRIO=['Finaliser la proposition client','Préparer la réunion d\'équipe','Répondre aux e-mails en attente'];
+
+/* ---------- stockage local ---------- */
+let S={city:null,method:'MWL',nap:true,spType:'Marche',spWhen:'matin',qGoal:4,qUnit:'pages',days:{}};
+try{const r=JSON.parse(localStorage.getItem('mizan-v1'));if(r&&typeof r==='object')S=Object.assign(S,r)}catch(e){}
+const save=()=>{try{localStorage.setItem('mizan-v1',JSON.stringify(S))}catch(e){}};
+const dayOf=k=>S.days[k]||(S.days[k]={done:{},q:0,prio:DEF_PRIO.map(t=>({t,d:false}))});
+
+/* ---------- temps ---------- */
+function parts(date,tz){const o={};new Intl.DateTimeFormat('en-US',{timeZone:tz,hourCycle:'h23',year:'numeric',month:'numeric',day:'numeric',hour:'numeric',minute:'numeric',second:'numeric'}).formatToParts(date).forEach(x=>{if(x.type!=='literal')o[x.type]=+x.value});return o}
+function tzOffset(dt,tz){const u=new Date(Date.UTC(dt.y,dt.m-1,dt.d,12));const p=parts(u,tz);return (Date.UTC(p.year,p.month-1,p.day,p.hour,p.minute)-u)/36e5}
+const key=dt=>dt.y+'-'+String(dt.m).padStart(2,'0')+'-'+String(dt.d).padStart(2,'0');
+const addDays=(dt,n)=>{const u=new Date(Date.UTC(dt.y,dt.m-1,dt.d+n));return{y:u.getUTCFullYear(),m:u.getUTCMonth()+1,d:u.getUTCDate()}};
+const wd=dt=>new Date(Date.UTC(dt.y,dt.m-1,dt.d)).getUTCDay();
+const hm=m=>{m=((Math.round(m)%1440)+1440)%1440;return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0')};
+const dur=m=>{m=Math.round(m);const h=Math.floor(m/60),r=m%60;return h?(r?h+' h '+String(r).padStart(2,'0'):h+' h'):r+' min'};
+function nowIn(city){const p=parts(new Date(),city.tz);return{dt:{y:p.year,m:p.month,d:p.day},min:p.hour*60+p.minute+p.second/60}}
+
+/* ---------- horaires de prière (calcul astronomique local) ---------- */
+function prayerTimes(dt,city,M){
+  const R=Math.PI/180,tz=tzOffset(dt,city.tz);
+  const D=Date.UTC(dt.y,dt.m-1,dt.d,12)/864e5+2440587.5-city.lng/360-2451545;
+  const g=R*((357.529+0.98560028*D)%360),q=(280.459+0.98564736*D)%360;
+  const L=R*(q+1.915*Math.sin(g)+0.020*Math.sin(2*g)),e=R*(23.439-0.00000036*D);
+  let RA=Math.atan2(Math.cos(e)*Math.sin(L),Math.cos(L))/R/15;RA=((RA%24)+24)%24;
+  let eqt=q/15-RA;if(eqt>12)eqt-=24;if(eqt<-12)eqt+=24;
+  const dec=Math.asin(Math.sin(e)*Math.sin(L)),lat=R*city.lat;
+  const noon=12+tz-city.lng/15-eqt;
+  const T=a=>Math.acos((-Math.sin(R*a)-Math.sin(lat)*Math.sin(dec))/(Math.cos(lat)*Math.cos(dec)))/R/15;
+  const sr=noon-T(0.833),ss=noon+T(0.833),night=24-(ss-sr);
+  let fajr=noon-T(M.f);if(isNaN(fajr))fajr=sr-night*M.f/60;           /* hautes latitudes */
+  let isha=M.im?ss+M.im/60:noon+T(M.i);if(isNaN(isha))isha=ss+night*M.i/60;
+  const asr=noon+Math.acos((Math.sin(Math.atan(1/(1+Math.tan(Math.abs(lat-dec)))))-Math.sin(lat)*Math.sin(dec))/(Math.cos(lat)*Math.cos(dec)))/R/15;
+  const r=h=>Math.round(h*60);
+  return{fajr:r(fajr),sunrise:r(sr),dhuhr:r(noon)+1,asr:r(asr),maghrib:r(ss)+1,isha:r(isha)};
+}
+
+/* ---------- planification : les prières sont fixes, le reste se loge entre elles ---------- */
+function buildDay(dt,pt){
+  const B=[],w=wd(dt),weekend=w===0||w===6,D=dayOf(key(dt));
+  const early=pt.fajr<285;                       /* Fajr avant 04:45 : on se recouche */
+  const wake=pt.fajr-15, part2=early?390-(pt.fajr+15):0;
+  let bed=wake+1440-(450-part2)-15; bed=Math.max(bed,pt.isha+25);
+  const night=wake+1440-bed-15;
+  const add=(id,cat,s,e,ttl,sub,x)=>{const b=Object.assign({id,cat,s,e,ttl,sub},x);B.push(b);return b};
+  const place=(id,cat,ttl,sub,o)=>{
+    let t=o.from;const latest=o.to==null?bed:o.to;
+    while(t+o.min<=latest){
+      const hit=B.find(b=>b.s<t+o.min&&b.e>t);
+      if(hit){t=hit.e;continue}
+      const nx=Math.min(latest,...B.filter(b=>b.s>=t).map(b=>b.s));
+      return add(id,cat,t,Math.min(t+o.len,nx),ttl,sub);
+    }
+    return null};
+  const end=(b,f)=>b?b.e:f;
+
+  PR.forEach(([id,n])=>add(id,'spirit',pt[id]-10,pt[id]+15,(id==='dhuhr'&&w===5)?'Jumu\'a':n,'Ablutions, prière, invocations · adhan à '+hm(pt[id]),{prayer:true}));
+  let cur=pt.fajr+15;
+  if(early){add('sleep2','health',cur,390,'Second sommeil','Fajr très matinal : on termine la nuit');cur=390}
+
+  const unit=S.qUnit,goal=S.qGoal;
+  cur=end(place('coran','spirit','Lecture du Coran','Objectif : '+goal+' '+unit,{from:cur,len:25,min:15}),cur);
+  const sport=(from)=>place('sport','health',S.spType,weekend?'Séance longue du week-end':'Séance du jour',{from,len:weekend?60:40,min:25});
+  if(S.spWhen==='matin')cur=end(sport(cur+5),cur);
+  cur=end(place('bfast','life','Petit-déjeuner et préparation',(w===1||w===4)?'Jour de jeûne : préparation seulement':'',{from:cur,len:35,min:20}),cur);
+
+  if(S.spWhen==='midi')sport(720);
+  const lunch=place('lunch','life','Déjeuner','Pause sans écran',{from:735,len:40,min:35,to:900});
+  let aft=end(lunch,780);
+  if(S.nap)aft=end(place('nap','health','Qaylulah','Sieste réparatrice, réveil programmé',{from:aft,len:20,min:15,to:960}),aft);
+
+  const p=D.prio.map(x=>x.t||'À définir');
+  if(!weekend){
+    const d1=place('dw1','work','Deep Work 1',p[0],{from:Math.max(cur,480),len:120,min:50,to:lunch?lunch.s:780});
+    const br=d1?place('br','life','Pause','Marche, eau, étirements',{from:d1.e,len:15,min:10}):null;
+    place('dw2','work','Deep Work 2',p[1],{from:end(br,end(d1,cur)),len:90,min:45,to:lunch?lunch.s:780});
+    const l=place('shallow','work','Travail léger','E-mails, réunions, suivi',{from:aft,len:105,min:30,to:1050});
+    place('dw3','work','Deep Work 3',p[2]+' · clôture de journée',{from:end(l,aft),len:120,min:40,to:1050});
+  }else{
+    place('dw1','work','Projet personnel',p[0],{from:Math.max(cur,540),len:90,min:45,to:lunch?lunch.s:780});
+    place('home','life','Maison et courses','Préparer la semaine',{from:Math.max(cur,540),len:60,min:30,to:lunch?lunch.s:780});
+  }
+  if(S.spWhen==='soir')sport(weekend?990:1050);
+
+  const pick=D.kin!=null?KIN[D.kin]:null;
+  if(weekend)place('kin','kin',pick?pick.act:'Visite à la famille','Silat ar-Rahim',{from:aft,len:150,min:60,to:1170});
+  else place('kin','kin',pick?pick.act:'Appeler les parents','Silat ar-Rahim',{from:1080,len:pick&&pick!==KIN[0]?60:20,min:15});
+  const din=place('dinner','life',(w===1||w===4)?'Iftar et dîner':'Dîner','',{from:Math.max(1140,(w===1||w===4)?pt.maghrib+15:0),len:45,min:30});
+  place('eve','kin','Soirée en famille','Présence, sans téléphone',{from:end(din,1200),len:75,min:30,to:bed-30});
+  place('wind','spirit','Rituel du coucher','Quelques versets, invocations du soir, écrans éteints',{from:bed-30,len:30,min:15,to:bed});
+  add('bed','health',bed,bed,'Coucher','Réveil à '+hm(wake)+' · '+dur(night)+' de nuit',{mark:true});
+
+  B.sort((a,b)=>a.s-b.s);
+  return{B,bed,wake,night,early,part2};
+}
+
+/* ---------- état d'affichage ---------- */
+let city=CITIES.find(c=>c.n===S.city);
+if(!city)city=CITIES[0];
+let sel=nowIn(city).dt, pt, plan, lastMin=-1;
+
+function compute(){pt=prayerTimes(sel,city,METHODS[S.method]||METHODS.MWL);plan=buildDay(sel,pt)}
+const isToday=()=>key(sel)===key(nowIn(city).dt);
+
+function renderHead(){
+  const u=new Date(Date.UTC(sel.y,sel.m-1,sel.d,12));
+  let g=new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long',timeZone:'UTC'}).format(u),h='';
+  try{h=new Intl.DateTimeFormat('fr-FR-u-ca-islamic-umalqura',{day:'numeric',month:'long',year:'numeric',timeZone:'UTC'}).format(u)}catch(e){}
+  $('dTitle').textContent=isToday()?'Ma Journée':'Journée du '+g;
+  $('dSub').textContent=(isToday()?g.charAt(0).toUpperCase()+g.slice(1)+' · ':'')+(h?h+' · ':'')+city.n;
+  const today=nowIn(city).dt,mon=addDays(sel,-((wd(sel)+6)%7)),L=['dim','lun','mar','mer','jeu','ven','sam'];
+  $('week').innerHTML=Array.from({length:7},(_,i)=>{const d=addDays(mon,i),w=wd(d);
+    const tag=w===1||w===4?'jeûne':w===5?'Al-Kahf':'';
+    return `<button class="day${key(d)===key(today)?' today':''}" data-act="day" data-k="${key(d)}" ${key(d)===key(sel)?'aria-current="date"':''}><small>${L[w]}</small><b class="num">${d.d}</b><i>${tag}</i></button>`}).join('');
+  const w=wd(sel),N=[];
+  if(w===1||w===4)N.push(`<b>Jeûne surérogatoire</b> du ${w===1?'lundi':'jeudi'} · iftar à ${hm(pt.maghrib)}`);
+  if(w===0||w===3)N.push(`Demain ${w===0?'lundi':'jeudi'} : <b>jeûne surérogatoire</b>. Pense à l'intention et au souhour avant ${hm(pt.fajr)}`);
+  if(w===5)N.push('<b>Sourate Al-Kahf</b> à lire aujourd\'hui · Jumu\'a à '+hm(pt.dhuhr));
+  if(w===4)N.push('Demain vendredi : <b>sourate Al-Kahf</b>');
+  $('notes').innerHTML=N.map(x=>`<span class="note">${x}</span>`).join('');
+}
+
+function renderNext(){
+  const n=nowIn(city),D=dayOf(key(sel));
+  $('salat').innerHTML=PR.map(([id,nm])=>`<button data-act="done" data-id="${id}" aria-pressed="${!!D.done[id]}" aria-label="${nm} ${hm(pt[id])}, ${D.done[id]?'accomplie':'à accomplir'}"><span>${nm}</span><b class="num">${hm(pt[id])}</b></button>`).join('');
+  $('sun').textContent='Lever du soleil '+hm(pt.sunrise)+' · Coucher idéal '+hm(plan.bed);
+  if(!isToday()){$('nxLabel').textContent='Première prière';$('nxName').textContent='Fajr à '+hm(pt.fajr);$('nxCd').textContent=PR.filter(([id])=>D.done[id]).length+' prière(s) cochée(s) sur 5';return}
+  const nx=nextPrayer(n);
+  $('nxLabel').textContent='Prochaine prière';
+  $('nxName').textContent=nx.name+' à '+hm(nx.at);
+  $('nxCd').textContent='dans '+dur(Math.max(1,Math.ceil(nx.at-n.min)))+(nx.tomorrow?' (demain)':'');
+}
+function nextPrayer(n){
+  const t=prayerTimes(n.dt,city,METHODS[S.method]);
+  const f=PR.find(([id])=>t[id]>n.min);
+  if(f)return{name:f[1],at:t[f[0]]};
+  return{name:'Fajr',at:prayerTimes(addDays(n.dt,1),city,METHODS[S.method]).fajr+1440,tomorrow:true};
+}
+
+const CAT={spirit:'Spiritualité',work:'Travail',health:'Santé',kin:'Proches',life:''};
+function renderTL(){
+  const D=dayOf(key(sel)),today=isToday(),nowM=nowIn(city).min,rows=[];let prev=null;
+  plan.B.forEach(b=>{
+    if(prev&&b.s-prev.e>=10)rows.push({gap:true,s:prev.e,e:b.s});
+    rows.push(b);if(!b.mark)prev=b;else prev=b});
+  $('tl').innerHTML=rows.map(b=>{
+    const st=!today?'':(b.e<=nowM&&!(b.mark&&b.s>nowM)?' past':(b.s<=nowM&&nowM<b.e?' now':''));
+    if(b.gap)return `<li class="row gap${st}"><div class="t num"><span>${hm(b.s)}</span></div><div class="nd"></div><div class="ttl">Temps libre · ${dur(b.e-b.s)}</div><div></div></li>`;
+    const done=!!D.done[b.id],meta=[CAT[b.cat]?`<em>${CAT[b.cat]}</em>`:'',b.mark?'':dur(b.e-b.s),esc(b.sub||'')].filter(Boolean).join(' · ');
+    return `<li class="row ${b.cat}${b.prayer?' prayer':''}${st}${done?' done':''}">
+      <div class="t num"><b>${hm(b.s)}</b>${b.mark?'':`<span>${hm(b.e)}</span>`}</div><div class="nd"></div>
+      <div><div class="ttl">${esc(b.ttl)}</div><div class="sub">${meta}</div></div>
+      <button class="chk" data-act="done" data-id="${b.id}" aria-pressed="${done}" aria-label="${done?'Décocher':'Cocher'} ${esc(b.ttl)}">✓</button></li>`}).join('');
+  const act=plan.B.filter(b=>!b.mark),nd=act.filter(b=>D.done[b.id]).length;
+  $('tlMeta').textContent=nd+' bloc'+(nd>1?'s':'')+' sur '+act.length+' accompli'+(nd>1?'s':'');
+}
+
+function renderPrio(){
+  const D=dayOf(key(sel));
+  $('prio').innerHTML=D.prio.map((p,i)=>`<div><b>${i+1}</b><input type="text" id="prio${i}" data-i="${i}" class="${p.d?'isdone':''}" value="${esc(p.t)}" aria-label="Priorité ${i+1}" placeholder="Priorité ${i+1}"><button class="chk" data-act="prio" data-i="${i}" aria-pressed="${p.d}" aria-label="Priorité ${i+1} terminée">✓</button></div>`).join('');
+}
+function renderQ(){
+  const D=dayOf(key(sel)),pc=Math.min(100,Math.round(D.q/S.qGoal*100));
+  $('qVal').textContent=D.q+' / '+S.qGoal+' '+S.qUnit;$('qBar').style.width=pc+'%';
+  $('qPct').textContent=pc>=100?'Objectif atteint':pc+' %';
+}
+function renderSleep(){
+  const tot=plan.night+plan.part2;
+  $('sleep').innerHTML=`<div><b>${hm(plan.bed)}</b><span>coucher idéal</span></div><div><b>${hm(plan.wake)}</b><span>réveil, 15 min avant Fajr</span></div><div><b>${dur(tot)}</b><span>${(tot/90).toFixed(1).replace('.',',')} cycles de 90 min${plan.early?', en deux temps':''}</span></div>`;
+}
+function renderKin(){
+  const D=dayOf(key(sel));
+  $('kin').innerHTML=KIN.map((k,i)=>{const w=Math.floor(k.d/7),since=w>=2?w+' semaines':k.d+' jours';
+    return `<li><p>Tu n'as pas ${k.verb} <b>${k.n}</b> depuis ${since}.</p><button class="btn sm ${D.kin===i?'':'ghost'}" data-act="kin" data-i="${i}">${D.kin===i?'Planifié':'Placer aujourd\'hui'}</button></li>`}).join('');
+}
+function renderBal(){
+  const m={spirit:0,work:0,health:plan.night,kin:0};
+  plan.B.forEach(b=>{if(m[b.cat]!=null)m[b.cat]+=b.e-b.s});
+  const tot=Object.values(m).reduce((a,b)=>a+b,0),V={spirit:'--sage',work:'--work',health:'--health',kin:'--gold'},N={spirit:'Spiritualité',work:'Travail',health:'Santé (sommeil, sport)',kin:'Proches'};
+  $('bal').innerHTML=Object.keys(m).map(k=>`<i style="width:${m[k]/tot*100}%;background:var(${V[k]})" title="${N[k]} : ${dur(m[k])}"></i>`).join('');
+  $('leg').innerHTML=Object.keys(m).map(k=>`<span style="--c:var(${V[k]})">${N[k]}<b>${dur(m[k])}</b></span>`).join('');
+  $('balTot').textContent=dur(tot)+' planifiées';
+}
+function renderAll(){compute();renderHead();renderNext();renderTL();renderPrio();renderQ();renderSleep();renderKin();renderBal();renderPomo()}
+
+/* ---------- Pomodoro qui s'arrête avant la prière ---------- */
+let pm={mode:'idle',end:0,left:0,paused:false},pmMsg='';
+function pomoPlan(){
+  const n=nowIn(city),nx=nextPrayer(n),avail=Math.floor(nx.at-10-n.min);
+  return{nx,avail,len:Math.min(25,avail)};
+}
+function renderPomo(){
+  const go=$('pmGo');let ms;
+  if(pm.mode==='idle'){const p=pomoPlan();ms=Math.max(0,p.len)*6e4;go.textContent='Démarrer';
+    $('pmMode').textContent='Prêt';
+    $('pmNote').textContent=pmMsg||(p.avail<5?`${p.nx.name} approche (${hm(p.nx.at)}). Garde ces minutes pour te préparer.`:p.len<25?`Session raccourcie à ${p.len} min pour être prêt avant ${p.nx.name} (${hm(p.nx.at)}).`:`25 min de concentration, 5 min de pause. Prochaine prière : ${p.nx.name} à ${hm(p.nx.at)}.`);
+  }else{ms=pm.paused?pm.left:Math.max(0,pm.end-Date.now());go.textContent=pm.paused?'Reprendre':'Pause';
+    $('pmMode').textContent=pm.mode==='focus'?'Concentration':'Pause';$('pmNote').textContent=pmMsg}
+  const s=Math.ceil(ms/1000);$('pmClock').textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+}
+function pomoToggle(){
+  if(pm.mode==='idle'){const p=pomoPlan();
+    if(p.avail<5){pmMsg='';toast(`${p.nx.name} dans ${Math.max(1,p.avail+10)} min : c'est le moment des ablutions.`);return}
+    pm={mode:'focus',end:Date.now()+p.len*6e4,paused:false};
+    pmMsg=p.len<25?`Session de ${p.len} min : fin à l'heure de la préparation pour ${p.nx.name}.`:'Session de 25 min en cours. Téléphone retourné.';
+  }else if(pm.paused){pm.end=Date.now()+pm.left;pm.paused=false}
+  else{pm.left=pm.end-Date.now();pm.paused=true}
+  renderPomo();
+}
+function pomoTick(){
+  if(pm.mode==='idle'||pm.paused)return;
+  if(Date.now()>=pm.end){
+    if(pm.mode==='focus'){const p=pomoPlan();
+      if(p.avail<=5){pm={mode:'idle'};pmMsg='';toast('Session terminée. Place à '+p.nx.name+'.')}
+      else{pm={mode:'break',end:Date.now()+5*6e4,paused:false};pmMsg='Lève-toi, respire, bois un verre d\'eau.';toast('Session terminée. 5 min de pause.')}
+    }else{pm={mode:'idle'};pmMsg='';toast('Pause terminée.')}
+  }
+  renderPomo();
+}
+
+/* ---------- interactions ---------- */
+let tT;function toast(t){const e=$('toast');e.textContent=t;e.hidden=false;clearTimeout(tT);tT=setTimeout(()=>e.hidden=true,3200)}
+function ciRender(){
+  const D=dayOf(key(sel));
+  $('ciSalat').innerHTML=PR.map(([id,n])=>`<button type="button" data-act="done" data-id="${id}" aria-pressed="${!!D.done[id]}">${n}</button>`).join('');
+  const np=D.prio.filter(p=>p.d).length;
+  $('ciSum').textContent=`Coran : ${D.q} / ${S.qGoal} ${S.qUnit} · Priorités terminées : ${np} sur 3`;
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act]');if(!b)return;const a=b.dataset.act,D=dayOf(key(sel));
+  if(a==='day'){const [y,m,d]=b.dataset.k.split('-').map(Number);sel={y,m,d};renderAll()}
+  else if(a==='done'){D.done[b.dataset.id]=!D.done[b.dataset.id];save();renderNext();renderTL();if($('dlg').open)ciRender()}
+  else if(a==='prio'){const p=D.prio[+b.dataset.i];p.d=!p.d;save();renderPrio()}
+  else if(a==='q+'||a==='q-'){D.q=Math.max(0,D.q+(a==='q+'?1:-1));if(D.q>=S.qGoal)D.done.coran=true;save();renderQ();renderTL()}
+  else if(a==='kin'){const i=+b.dataset.i;D.kin=D.kin===i?null:i;save();compute();renderTL();renderKin();renderBal();
+    if(D.kin!=null){const k=plan.B.find(x=>x.id==='kin');toast(k?`${KIN[i].act} : placé à ${hm(k.s)}.`:'Aucun créneau libre aujourd\'hui.')}}
+  else if(a==='pomo')pomoToggle();
+  else if(a==='pomo-reset'){pm={mode:'idle'};pmMsg='';renderPomo()}
+  else if(a==='checkin'){ciRender();$('ciGrat').value=D.grat||'';$('ciAdj').value=D.adj||'';$('ciP1').value='';$('dlg').showModal()}
+  else if(a==='ci-close')$('dlg').close();
+});
+$('ciForm').addEventListener('submit',e=>{e.preventDefault();const D=dayOf(key(sel));
+  D.grat=$('ciGrat').value;D.adj=$('ciAdj').value;D.checkin=true;
+  const p1=$('ciP1').value.trim();if(p1){const T=dayOf(key(addDays(sel,1)));T.prio[0]={t:p1,d:false}}
+  save();$('dlg').close();toast(p1?'Bilan enregistré. Demain commence par : '+p1:'Bilan enregistré. Bonne nuit.')});
+$('prio').addEventListener('change',e=>{const i=e.target.dataset.i;if(i==null)return;dayOf(key(sel)).prio[+i].t=e.target.value;save();compute();renderTL()});
+
+$('city').innerHTML=CITIES.map(c=>`<option>${c.n}</option>`).join('');$('city').value=city.n;
+$('method').innerHTML=Object.keys(METHODS).map(k=>`<option value="${k}">${METHODS[k].n}</option>`).join('');$('method').value=S.method;
+$('nap').checked=S.nap;$('spType').value=S.spType;$('spWhen').value=S.spWhen;$('qGoal').value=S.qGoal;$('qUnit').value=S.qUnit;
+$('city').onchange=e=>{city=CITIES.find(c=>c.n===e.target.value);S.city=city.n;sel=nowIn(city).dt;save();renderAll()};
+$('method').onchange=e=>{S.method=e.target.value;save();renderAll()};
+$('nap').onchange=e=>{S.nap=e.target.checked;save();renderAll()};
+$('spType').onchange=e=>{S.spType=e.target.value;save();renderAll()};
+$('spWhen').onchange=e=>{S.spWhen=e.target.value;save();renderAll()};
+$('qGoal').onchange=e=>{S.qGoal=Math.max(1,parseInt(e.target.value,10)||1);e.target.value=S.qGoal;save();renderAll()};
+$('qUnit').onchange=e=>{S.qUnit=e.target.value;save();renderAll()};
+
+renderAll();
+setInterval(()=>{pomoTick();const m=Math.floor(nowIn(city).min);if(m!==lastMin){lastMin=m;renderNext();renderTL();if(pm.mode==='idle')renderPomo()}},1000);
+})();
+</script>
+<script>if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));</script>
+</body>
+</html>
